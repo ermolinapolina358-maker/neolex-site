@@ -32,7 +32,23 @@ rm -rf /tmp/neolex-src && mkdir -p /tmp/neolex-src
 curl -fsSL -o /tmp/neolex-src/site.zip "https://github.com/${GH_USER}/${REPO}/archive/refs/heads/main.zip"
 unzip -oq /tmp/neolex-src/site.zip -d /tmp/neolex-src
 SRC="$(find /tmp/neolex-src -maxdepth 1 -mindepth 1 -type d | head -1)"
+# если файлы загружены на GitHub без папок — раскладываем их сами
+if [ ! -d "$SRC/pb_public" ] && [ -f "$SRC/index.html" ]; then
+  echo "==> Раскладываю файлы по папкам"
+  mkdir -p "$SRC/pb_public" "$SRC/pb_migrations" "$SRC/pb_hooks"
+  for f in "$SRC"/*; do
+    [ -f "$f" ] || continue
+    b="$(basename "$f")"
+    case "$b" in
+      install.sh|README.md|*.zip) ;;
+      [0-9]*_*.js) mv "$f" "$SRC/pb_migrations/" ;;
+      *.pb.js|neolex_ref.js) mv "$f" "$SRC/pb_hooks/" ;;
+      *) mv "$f" "$SRC/pb_public/" ;;
+    esac
+  done
+fi
 for d in pb_public pb_migrations pb_hooks; do
+  if [ ! -d "$SRC/$d" ]; then echo "На GitHub не найдена папка $d. Проверьте, что файлы сайта загружены в репозиторий."; exit 1; fi
   rm -rf "$APP_DIR/$d"
   cp -r "$SRC/$d" "$APP_DIR/$d"
 done
